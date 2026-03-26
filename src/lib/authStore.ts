@@ -30,6 +30,7 @@ interface AuthState {
   initAuth: () => void;
   signUp: (email: string, password: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
+  resetPassword: (email: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   fetchUserPoints: (email: string) => Promise<void>;
   fetchShopItems: () => Promise<void>;
@@ -93,6 +94,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
     toast.success("Welcome back!");
+    return true;
+  },
+
+  resetPassword: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    if (error) {
+      toast.error(error.message);
+      return false;
+    }
+    toast.success("Password reset email sent! Please check your inbox.");
     return true;
   },
 

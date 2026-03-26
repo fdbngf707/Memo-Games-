@@ -595,6 +595,127 @@ const AdminPage = () => {
           </div>
         </EditModal>
       )}
+
+      {/* Competition Participants Modal */}
+      {viewingCompetition && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border border-border shadow-2xl relative">
+            <div className="sticky top-0 bg-card z-10 p-6 border-b border-border flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Review: {viewingCompetition.title}</h2>
+                <p className="text-muted-foreground text-sm">Review submissions and assign placements.</p>
+              </div>
+              <button onClick={() => setViewingCompetition(null)} className="p-2 text-muted-foreground hover:bg-secondary rounded-lg transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {loadingParticipants ? (
+                <div className="flex justify-center py-12"><span className="animate-spin text-primary">⏳</span></div>
+              ) : compParticipants.length === 0 ? (
+                <p className="text-center py-10 text-muted-foreground">No participants have joined yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {compParticipants.map((p) => (
+                    <div key={p.id} className="glass-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div>
+                        <div className="font-semibold text-foreground">{p.user_email}</div>
+                        <div className="text-sm mt-1">
+                          {p.submission_url ? (
+                            <a href={p.submission_url} target="_blank" rel="noreferrer" className="text-primary hover:underline inline-flex items-center gap-1 font-medium">
+                              <ExternalLink className="w-3 h-3" /> View Project
+                            </a>
+                          ) : (
+                            <span className="text-muted-foreground">No submission yet</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-muted-foreground font-medium">Placement:</label>
+                        <select 
+                          value={p.placement || 0}
+                          onChange={(e) => {
+                            const newPlacements = compParticipants.map(cp => cp.id === p.id ? { ...cp, placement: parseInt(e.target.value) } : cp);
+                            setCompParticipants(newPlacements);
+                          }}
+                          className={`${inputClass} !py-2`}
+                          disabled={viewingCompetition.status === "ended"}
+                        >
+                          <option value={0}>Unranked</option>
+                          <option value={1}>1st Place 🥇</option>
+                          <option value={2}>2nd Place 🥈</option>
+                          <option value={3}>3rd Place 🥉</option>
+                          <option value={4}>4th Place</option>
+                          <option value={5}>5th Place</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {viewingCompetition.status !== "ended" && compParticipants.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-primary/5 p-5 rounded-xl border border-primary/20">
+                  <div>
+                    <h4 className="font-bold text-foreground text-lg">Finalize Competition</h4>
+                    <p className="text-sm text-muted-foreground max-w-md mt-1">This will close the competition, award points based on placement, and notify winners automatically. This action cannot be undone.</p>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      if (!confirm("Are you sure you want to finalize? This will distribute points to winners immediately.")) return;
+                      
+                      // 1. Save placements
+                      for (const p of compParticipants) {
+                        if (p.placement !== undefined) {
+                          await supabase.from('competition_participants').update({ placement: p.placement }).eq('id', p.id);
+                        }
+                      }
+                      
+                      // 2. Distribute points & notify
+                      const multipliers: Record<number, number> = { 1: 1, 2: 0.7, 3: 0.5, 4: 0.3, 5: 0.15 };
+                      const basePoints = viewingCompetition.first_place_points || 0;
+                      
+                      if (basePoints > 0) {
+                        for (const p of compParticipants) {
+                          if (p.placement > 0 && p.placement <= 5) {
+                            const pointsWon = Math.round(basePoints * multipliers[p.placement]);
+                            // Give points directly (using authStore internal function or generic insert)
+                            const { data: existing } = await supabase.from("user_points").select("points").eq("email", p.user_email).single();
+                            if (existing) {
+                              await supabase.from("user_points").update({ points: existing.points + pointsWon }).eq("email", p.user_email);
+                            } else {
+                              await supabase.from("user_points").insert({ email: p.user_email, points: pointsWon });
+                            }
+
+                            // Add notification
+                            addNotification(
+                              p.user_email,
+                              "You Placed in the Competition! 🏆",
+                              `Congratulations! You got ${p.placement}${p.placement === 1 ? 'st' : p.placement === 2 ? 'nd' : p.placement === 3 ? 'rd' : 'th'} place in "${viewingCompetition.title}" and won ${pointsWon} points!`
+                            );
+                          } else {
+                             // Notify participation
+                             addNotification(p.user_email, "Competition Results are in! 🎮", `The results for "${viewingCompetition.title}" have been announced. Check the competition page to see the winners!`);
+                          }
+                        }
+                      }
+
+                      // 3. Mark competition as ended
+                      await updateCompetition(viewingCompetition.id, { status: 'ended' });
+                      const updatedComp = { ...viewingCompetition, status: 'ended' };
+                      setViewingCompetition(updatedComp);
+                    }}
+                    className="gradient-btn px-6 py-3 rounded-xl font-bold hover:shadow-lg hover:shadow-primary/20 flex items-center justify-center shrink-0 gap-2"
+                  >
+                    <Trophy className="w-5 h-5" /> Finalize & Award Prizes
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
