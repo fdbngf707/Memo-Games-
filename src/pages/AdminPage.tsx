@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { Shield, Eye, EyeOff, LogOut, Plus, Trash2, Gamepad2, Megaphone, HelpCircle, ShoppingBag, MessageSquare, Coins, Store, Trophy, Pencil, X, Gift, BarChart3, ImagePlus } from "lucide-react";
+import { Shield, Eye, EyeOff, LogOut, Plus, Trash2, Gamepad2, Megaphone, HelpCircle, ShoppingBag, MessageSquare, Coins, Store, Trophy, Pencil, X, Gift, BarChart3, ImagePlus, Upload, Save, Lock, Mail, ExternalLink, AlertCircle, History, Users, Check, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/authStore";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUpload from "@/components/ImageUpload";
 import ScreenshotUploader from "@/components/ScreenshotUploader";
+import { useNotificationStore } from "@/lib/notificationStore";
 import AdminMessages from "@/components/AdminMessages";
 import logo from "@/assets/memo-games-logo.png";
 
@@ -36,7 +37,13 @@ const AdminPage = () => {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<"games" | "news" | "faqs" | "merch" | "messages" | "points" | "shop" | "competitions" | "rewards" | "stats">("games");
-  const [rewardClaims, setRewardClaims] = useState<{ id: string; email: string; points: number; claimed_at: string }[]>([]);
+  // Reward Claims
+  const [rewardClaims, setRewardClaims] = useState<any[]>([]);
+
+  // Competition Grading
+  const [viewingCompetition, setViewingCompetition] = useState<any>(null);
+  const [compParticipants, setCompParticipants] = useState<any[]>([]);
+  const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [statsForm, setStatsForm] = useState(siteStats);
 
   // Forms
@@ -79,6 +86,8 @@ const AdminPage = () => {
 
   const startEdit = (type: string, item: any) => { setEditType(type); setEditingItem({ ...item }); };
   const closeEdit = () => { setEditingItem(null); setEditType(""); };
+
+  const { addNotification } = useNotificationStore();
 
   const saveEdit = async () => {
     if (!editingItem) return;
@@ -348,6 +357,15 @@ const AdminPage = () => {
                       <div><h4 className="font-semibold text-foreground">{c.title}</h4><span className="text-xs text-primary">{c.status} • {c.game}</span></div>
                     </div>
                     <div className="flex gap-1">
+                      <button onClick={async () => {
+                        setViewingCompetition(c);
+                        setLoadingParticipants(true);
+                        const { data } = await supabase.from('competition_participants').select('*').eq('competition_id', c.id);
+                        setCompParticipants(data || []);
+                        setLoadingParticipants(false);
+                      }} className="text-accent hover:bg-accent/10 px-3 py-1.5 rounded-lg flex items-center gap-1 text-sm font-semibold">
+                        <Users className="w-4 h-4" /> Review
+                      </button>
                       <button onClick={() => startEdit("competition", c)} className="text-primary hover:bg-primary/10 p-2 rounded-lg"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => removeCompetition(c.id)} className="text-destructive hover:bg-destructive/10 p-2 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                     </div>

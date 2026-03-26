@@ -15,6 +15,7 @@ import GameDetailsPage from "@/pages/GameDetailsPage";
 import NewsPage from "@/pages/NewsPage";
 import MerchPage from "@/pages/MerchPage";
 import CompetitionsPage from "@/pages/CompetitionsPage";
+import CompetitionDetailsPage from "@/pages/CompetitionDetailsPage";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import FaqPage from "@/pages/FaqPage";
@@ -26,6 +27,7 @@ import TermsOfService from "@/pages/TermsOfService";
 import CookiePolicy from "@/pages/CookiePolicy";
 import NotFound from "@/pages/NotFound";
 import ClaimPage from "@/pages/ClaimPage";
+import InboxPage from "@/pages/InboxPage";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/authStore";
 
@@ -42,12 +44,14 @@ const AnimatedRoutes = () => {
         <Route path="/news" element={<PageTransition><NewsPage /></PageTransition>} />
         <Route path="/merch" element={<PageTransition><MerchPage /></PageTransition>} />
         <Route path="/competitions" element={<PageTransition><CompetitionsPage /></PageTransition>} />
+        <Route path="/competitions/:id" element={<PageTransition><CompetitionDetailsPage /></PageTransition>} />
         <Route path="/about" element={<PageTransition><AboutPage /></PageTransition>} />
         <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
         <Route path="/faq" element={<PageTransition><FaqPage /></PageTransition>} />
         <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
         <Route path="/shop" element={<PageTransition><ShopPage /></PageTransition>} />
         <Route path="/dashboard-mg202412qw34re56ty78iu90opkareemyoussef" element={<PageTransition><AdminPage /></PageTransition>} />
+        <Route path="/inbox" element={<PageTransition><InboxPage /></PageTransition>} />
         <Route path="/claim" element={<PageTransition><ClaimPage /></PageTransition>} />
         <Route path="/privacy-policy" element={<PageTransition><PrivacyPolicy /></PageTransition>} />
         <Route path="/terms-of-service" element={<PageTransition><TermsOfService /></PageTransition>} />

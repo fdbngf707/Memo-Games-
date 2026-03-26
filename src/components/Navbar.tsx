@@ -1,8 +1,9 @@
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Coins, LogIn, LogOut, User } from "lucide-react";
+import { Menu, X, Coins, LogIn, LogOut, User, Bell } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuthStore } from "@/lib/authStore";
+import InboxDropdown from "@/components/InboxDropdown";
 import logo from "@/assets/memo-games-logo.png";
 
 const navLinks = [
@@ -80,6 +81,7 @@ const Navbar = () => {
 
         {/* Auth section */}
         <div className="hidden md:flex items-center gap-3">
+          {user && <InboxDropdown />}
           {user ? (
             <>
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/30">
@@ -141,13 +143,20 @@ const Navbar = () => {
             {/* Mobile auth */}
             <div className="pt-2 border-t border-border">
               {user ? (
-                <div className="flex items-center justify-between px-4 py-2">
-                  <div className="flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm font-bold">{userPoints} pts</span>
-                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">{user.email}</span>
+                <div className="flex flex-col gap-2 p-2">
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <div className="flex items-center gap-2">
+                      <Coins className="w-4 h-4 text-yellow-500" />
+                      <span className="text-sm font-bold">{userPoints} pts</span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[150px]">{user.email}</span>
+                    </div>
                   </div>
-                  <button onClick={() => { signOut(); setOpen(false); }} className="text-destructive text-sm">Logout</button>
+                  <div className="flex items-center justify-between px-2 pt-2 border-t border-border/50">
+                    <Link to="/inbox" onClick={() => setOpen(false)} className="text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2">
+                      <Bell className="w-4 h-4" /> Inbox
+                    </Link>
+                    <button onClick={() => { signOut(); setOpen(false); }} className="text-destructive text-sm font-medium">Logout</button>
+                  </div>
                 </div>
               ) : (
                 <Link to="/login" onClick={() => setOpen(false)} className="block px-4 py-2.5 gradient-btn rounded-lg text-sm text-center font-medium">

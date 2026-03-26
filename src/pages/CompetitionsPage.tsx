@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Trophy, Calendar, Users, Clock, ChevronRight, Coins } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAppStore, Competition } from "@/lib/store";
@@ -123,11 +124,11 @@ const CompetitionsPage = () => {
                 </div>
               )}
               {comp.status !== "ended" && (
-                <button className="gradient-btn px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 w-full justify-center hover:shadow-lg hover:shadow-primary/20 transition-all">
+                <Link to={`/competitions/${comp.id}`} className="gradient-btn px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 w-full justify-center hover:shadow-lg hover:shadow-primary/20 transition-all">
                   <span className="relative z-10 flex items-center gap-2">
                     {comp.status === "open" ? "Join Competition" : "View Details"} <ChevronRight className="w-4 h-4" />
                   </span>
-                </button>
+                </Link>
               )}
             </motion.div>
           ))}

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNotificationStore } from "@/lib/notificationStore";
 
 interface ShopItem {
   id: string;
@@ -121,12 +122,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { data: existing } = await supabase.from("user_points").select("points").eq("email", email).single();
     if (existing) {
       const { error } = await supabase.from("user_points").update({ points: existing.points + points }).eq("email", email);
-      if (!error) toast.success(`Added ${points} points to ${email} (now ${existing.points + points})`);
-      else toast.error("Failed: " + error.message);
+      if (!error) {
+        toast.success(`Added ${points} points to ${email} (now ${existing.points + points})`);
+        useNotificationStore.getState().addNotification(email, "Points Awarded! 🎉", `An admin has awarded you ${points} points. Your new balance is ${existing.points + points}.`);
+      } else toast.error("Failed: " + error.message);
     } else {
       const { error } = await supabase.from("user_points").insert({ email, points });
-      if (!error) toast.success(`Created user ${email} with ${points} points`);
-      else toast.error("Failed: " + error.message);
+      if (!error) {
+        toast.success(`Created user ${email} with ${points} points`);
+        useNotificationStore.getState().addNotification(email, "Points Awarded! 🎉", `An admin has created your point wallet with a starting balance of ${points} points.`);
+      } else toast.error("Failed: " + error.message);
     }
   },
 
@@ -185,6 +190,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       userPoints: newPoints,
       purchases: [...purchases, purchase as Purchase],
     });
+
+    useNotificationStore.getState().addNotification(
+      user.email,
+      "Purchase Successful! 🛒",
+      `You successfully bought "${item.title}" for ${item.points_cost} points. You can always access your download using this link: ${item.download_link}`
+    );
 
     toast.success(`Purchased "${item.title}"! Redirecting to download...`);
     window.open(item.download_link, "_blank");
