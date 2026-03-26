@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 230 25% 7%;
+    --foreground: 220 20% 92%;
+    --card: 230 25% 10%;
+    --card-foreground: 220 20% 92%;
+    --popover: 230 25% 10%;
+    --popover-foreground: 220 20% 92%;
+    --primary: 255 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 230 25% 15%;
+    --secondary-foreground: 220 20% 85%;
+    --muted: 230 20% 14%;
+    --muted-foreground: 220 15% 55%;
+    --accent: 220 90% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 20% 18%;
+    --input: 230 20% 18%;
+    --ring: 255 70% 55%;
+    --radius: 0.75rem;
+    --neon: 170 80% 55%;
+    --sidebar-background: 230 25% 8%;
+    --sidebar-foreground: 220 20% 85%;
+    --sidebar-primary: 255 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 230 25% 14%;
+    --sidebar-accent-foreground: 220 20% 85%;
+    --sidebar-border: 230 20% 18%;
+    --sidebar-ring: 255 70% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  ::selection {
+    background: hsl(255 70% 55% / 0.3);
+    color: white;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(230 25% 7%);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(255 70% 55% / 0.3);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(255 70% 55% / 0.5);
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary;
+    background-size: 200% 100%;
+    animation: shimmer 3s ease infinite;
+  }
+  .gradient-btn {
+    @apply bg-gradient-to-r from-primary to-accent text-primary-foreground relative overflow-hidden;
+  }
+  .gradient-btn::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-accent to-primary opacity-0 transition-opacity duration-300;
+  }
+  .gradient-btn:hover::before {
+    @apply opacity-100;
+  }
+  .gradient-btn > * {
+    @apply relative z-10;
+  }
+  .glass-card {
+    @apply bg-card/60 backdrop-blur-md border border-border/50 rounded-xl;
+    transition: all 0.3s ease;
+  }
+  .glass-card:hover {
+    border-color: hsl(255 70% 55% / 0.3);
+    box-shadow: 0 0 20px hsl(255 70% 55% / 0.05);
+  }
+  .glow-text {
+    text-shadow: 0 0 40px hsl(255 70% 55% / 0.4), 0 0 80px hsl(255 70% 55% / 0.2);
+  }
+  .neon-border {
+    box-shadow: 0 0 15px hsl(255 70% 55% / 0.15), inset 0 0 15px hsl(255 70% 55% / 0.05);
+    border-color: hsl(255 70% 55% / 0.3);
+  }
+  .neon-glow {
+    text-shadow: 0 0 7px hsl(170 80% 55% / 0.6), 0 0 20px hsl(170 80% 55% / 0.3), 0 0 40px hsl(170 80% 55% / 0.15);
+  }
+  .nav-active {
+    @apply border border-primary/50 rounded-full px-4 py-1.5 text-primary;
+  }
+  .hero-grid {
+    background-image:
+      linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .floating-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.15;
+    pointer-events: none;
+    animation: orbFloat 8s ease-in-out infinite;
+  }
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -20px) scale(1.1); }
+  66% { transform: translate(-20px, 15px) scale(0.9); }
+}
+
+@keyframes pulse-neon {
+  0%, 100% { box-shadow: 0 0 5px hsl(255 70% 55% / 0.2), 0 0 20px hsl(255 70% 55% / 0.1); }
+  50% { box-shadow: 0 0 10px hsl(255 70% 55% / 0.4), 0 0 40px hsl(255 70% 55% / 0.2); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
