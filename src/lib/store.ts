@@ -68,6 +68,10 @@ export interface Competition {
   first_place_points: number;
   status: "open" | "ongoing" | "ended";
   image_url: string;
+  rules?: string;
+  submission_type?: "link" | "upload" | "external";
+  submission_link?: string;
+  allow_file_upload?: boolean;
 }
 
 export interface SiteStats {

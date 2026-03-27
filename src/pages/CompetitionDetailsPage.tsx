@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Trophy, Calendar, Users, Clock, Link as LinkIcon, Send, ArrowLeft, Loader2, Coins } from "lucide-react";
+import { Trophy, Calendar, Users, Clock, Link as LinkIcon, Send, ArrowLeft, Loader2, Coins, Upload, ExternalLink, FileText, Check, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/authStore";
@@ -29,10 +29,15 @@ const CompetitionDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submissionUrl, setSubmissionUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState("");
 
   const myParticipation = participants.find(p => p.user_email === user?.email);
   const isJoined = !!myParticipation;
   const isSubmitted = myParticipation?.status === "submitted" || myParticipation?.status === "won";
+
+  const submissionType = competition?.submission_type || "link";
+  const allowFileUpload = competition?.allow_file_upload ?? false;
 
   useEffect(() => {
     if (id) fetchParticipants();
@@ -91,16 +96,59 @@ const CompetitionDetailsPage = () => {
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // 50MB limit
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File too large. Maximum size is 50MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${id}/${user.email.replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from("competition-uploads")
+        .upload(fileName, file, { upsert: true });
+
+      if (error) {
+        if (error.message?.includes("Bucket not found") || error.message?.includes("not found")) {
+          toast.error("File uploads are not configured yet. Ask an admin to create the 'competition-uploads' storage bucket in Supabase.");
+        } else {
+          toast.error("Upload failed: " + error.message);
+        }
+        return;
+      }
+
+      const { data: publicUrl } = supabase.storage
+        .from("competition-uploads")
+        .getPublicUrl(data.path);
+
+      setUploadedFileUrl(publicUrl.publicUrl);
+      setSubmissionUrl(publicUrl.publicUrl);
+      toast.success("File uploaded successfully!");
+    } catch (err: any) {
+      toast.error("Upload error: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmitProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!submissionUrl.trim() || !user) return;
+    const finalUrl = submissionUrl.trim();
+    if (!finalUrl || !user) return;
 
     setSubmitting(true);
     try {
       const { error } = await supabase
         .from("competition_participants")
         .update({ 
-          submission_url: submissionUrl,
+          submission_url: finalUrl,
           status: "submitted"
         })
         .eq("competition_id", id)
@@ -204,9 +252,65 @@ const CompetitionDetailsPage = () => {
             </div>
           )}
 
+          {/* Rules Section */}
+          {competition.rules && (
+            <div className="mb-8 bg-secondary/20 p-5 rounded-xl border border-border/50">
+              <h3 className="font-display text-lg font-bold text-foreground flex items-center gap-2 mb-3">
+                <ScrollText className="w-5 h-5 text-primary" /> Competition Rules
+              </h3>
+              <div className="text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
+                {competition.rules}
+              </div>
+            </div>
+          )}
+
           {/* Action Area */}
           <div className="bg-card/50 p-6 rounded-xl border border-border">
-            {competition.status !== "open" && !isJoined ? (
+            {/* External Form Type */}
+            {submissionType === "external" && competition.submission_link ? (
+              <div>
+                {!isJoined ? (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-bold text-lg">Ready to compete?</h3>
+                      <p className="text-muted-foreground text-sm">Join and submit through the external form.</p>
+                    </div>
+                    <div className="flex gap-3 flex-wrap">
+                      <button 
+                        onClick={handleJoin}
+                        disabled={submitting || competition.status !== "open"}
+                        className="gradient-btn px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-transform disabled:opacity-50"
+                      >
+                        {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trophy className="w-5 h-5" />}
+                        Join Competition
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                        <Check className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-primary">You are registered!</h3>
+                        <p className="text-muted-foreground text-sm">Submit your entry using the external form below.</p>
+                      </div>
+                    </div>
+                    <a 
+                      href={competition.submission_link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="gradient-btn px-8 py-3 rounded-xl font-bold inline-flex items-center gap-2 hover:scale-105 transition-transform mt-2"
+                    >
+                      <ExternalLink className="w-5 h-5" /> Open Submission Form
+                    </a>
+                  </div>
+                )}
+              </div>
+
+            /* Standard Join & Submit */
+            ) : competition.status !== "open" && !isJoined ? (
               <div className="text-center text-muted-foreground">
                 Registration is closed for this competition.
               </div>
@@ -234,31 +338,74 @@ const CompetitionDetailsPage = () => {
                   <div>
                     <h3 className="font-bold text-lg text-primary">You are registered!</h3>
                     <p className="text-muted-foreground text-sm">
-                      {isSubmitted ? "Your project has been submitted." : "Submit your project link below."}
+                      {isSubmitted ? "Your project has been submitted." : 
+                       submissionType === "upload" ? "Upload your file below." : 
+                       "Submit your project link below."}
                     </p>
                   </div>
                 </div>
 
-                <form onSubmit={handleSubmitProject} className="mt-6 flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://yourname.itch.io/project"
-                      value={submissionUrl}
-                      onChange={(e) => setSubmissionUrl(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-border focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                    />
-                  </div>
-                  <button 
-                    type="submit"
-                    disabled={submitting || !submissionUrl.trim()}
-                    className="gradient-btn px-6 py-3 rounded-xl font-bold flex items-center gap-2 justify-center disabled:opacity-50"
-                  >
-                    {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    {isSubmitted ? "Update Link" : "Submit Entry"}
-                  </button>
+                <form onSubmit={handleSubmitProject} className="mt-6 space-y-4">
+                  {/* Link input — shown for "link" type always, and for "upload" type if they want to paste a link too */}
+                  {(submissionType === "link" || submissionType === "upload") && (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <div className="relative flex-1">
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          type="url"
+                          required={submissionType === "link" && !uploadedFileUrl}
+                          placeholder={
+                            submissionType === "upload" 
+                              ? "Or paste a link (optional)" 
+                              : "https://yourname.itch.io/project"
+                          }
+                          value={submissionUrl}
+                          onChange={(e) => setSubmissionUrl(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl bg-secondary border border-border focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                        />
+                      </div>
+                      <button 
+                        type="submit"
+                        disabled={submitting || !submissionUrl.trim()}
+                        className="gradient-btn px-6 py-3 rounded-xl font-bold flex items-center gap-2 justify-center disabled:opacity-50"
+                      >
+                        {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                        {isSubmitted ? "Update" : "Submit Entry"}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* File Upload — shown for "upload" type, or when admin enables it alongside link */}
+                  {(submissionType === "upload" || (submissionType === "link" && allowFileUpload)) && (
+                    <div className="bg-secondary/30 p-4 rounded-xl border border-border/50">
+                      <label className="text-sm font-semibold text-foreground flex items-center gap-2 mb-3">
+                        <Upload className="w-4 h-4 text-primary" /> 
+                        {submissionType === "upload" ? "Upload Your File" : "Or Upload a File"}
+                      </label>
+                      <div className="flex flex-col sm:flex-row items-start gap-3">
+                        <label className="cursor-pointer flex items-center gap-2 px-5 py-2.5 rounded-lg bg-secondary border border-border text-sm font-medium hover:bg-muted transition-colors">
+                          <FileText className="w-4 h-4 text-primary" />
+                          {uploading ? "Uploading..." : "Choose File"}
+                          <input 
+                            type="file" 
+                            className="hidden"
+                            onChange={handleFileUpload}
+                            disabled={uploading}
+                            accept="image/*,.zip,.rar,.7z,.obj,.fbx,.blend,.unitypackage,.pdf"
+                          />
+                        </label>
+                        {uploadedFileUrl && (
+                          <div className="flex items-center gap-2 text-sm text-primary">
+                            <Check className="w-4 h-4" />
+                            <a href={uploadedFileUrl} target="_blank" rel="noreferrer" className="hover:underline truncate max-w-xs">
+                              File uploaded ✓
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">Max 50MB. Supports images, .zip, 3D models, PDFs, and more.</p>
+                    </div>
+                  )}
                 </form>
               </div>
             )}
@@ -294,7 +441,6 @@ const CompetitionDetailsPage = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-foreground truncate">
-                    {/* Hide full email roughly */}
                     {p.user_email.split('@')[0].slice(0, 3)}***@{p.user_email.split('@')[1]}
                   </div>
                   {p.placement > 0 ? (
@@ -322,8 +468,5 @@ const CompetitionDetailsPage = () => {
     </div>
   );
 };
-  
-// Need a quick local import for Check so I don't break the build!
-import { Check } from "lucide-react";
 
 export default CompetitionDetailsPage;

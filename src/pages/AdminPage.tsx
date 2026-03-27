@@ -51,7 +51,7 @@ const AdminPage = () => {
   const [newsForm, setNewsForm] = useState({ title: "", content: "", category: "Release", date: "" });
   const [faqForm, setFaqForm] = useState({ question: "", answer: "" });
   const [merchForm, setMerchForm] = useState({ title: "", description: "", price: "", imageUrl: "", link: "" });
-  const [compForm, setCompForm] = useState({ title: "", description: "", game: "", start_date: "", end_date: "", prize: "", max_participants: "100", first_place_points: "100", status: "open" as const, image_url: "" });
+  const [compForm, setCompForm] = useState({ title: "", description: "", game: "", start_date: "", end_date: "", prize: "", max_participants: "100", first_place_points: "100", status: "open" as const, image_url: "", rules: "", submission_type: "link" as "link" | "upload" | "external", submission_link: "", allow_file_upload: false });
   const [pointsEmail, setPointsEmail] = useState("");
   const [pointsAmount, setPointsAmount] = useState("");
   const [allUsers, setAllUsers] = useState<{ email: string; points: number }[]>([]);
@@ -345,8 +345,35 @@ const AdminPage = () => {
                 )}
                 <div className="md:col-span-2"><label className="text-sm text-muted-foreground mb-1 block">Image</label><ImageUpload value={compForm.image_url} onChange={(url) => setCompForm({ ...compForm, image_url: url })} /></div>
                 <textarea placeholder="Description" value={compForm.description} onChange={(e) => setCompForm({ ...compForm, description: e.target.value })} className={`md:col-span-2 ${inputClass} h-20 resize-none`} />
+                <textarea placeholder="Rules (displayed to participants before joining)" value={compForm.rules} onChange={(e) => setCompForm({ ...compForm, rules: e.target.value })} className={`md:col-span-2 ${inputClass} h-24 resize-none`} />
+                
+                <div className="md:col-span-2 bg-secondary/30 p-4 rounded-xl border border-border/50 space-y-4">
+                  <label className="text-sm font-semibold text-foreground block">Submission Settings</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Submission Method</label>
+                      <select value={compForm.submission_type} onChange={(e) => setCompForm({ ...compForm, submission_type: e.target.value as any })} className={`w-full ${inputClass}`}>
+                        <option value="link">Link (itch.io, Google Drive, GitHub, etc.)</option>
+                        <option value="upload">File Upload (images, .zip, models, etc.)</option>
+                        <option value="external">External Form (Google Forms, Typeform, etc.)</option>
+                      </select>
+                    </div>
+                    {compForm.submission_type === "external" && (
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 block">External Form URL</label>
+                        <input placeholder="https://forms.google.com/..." value={compForm.submission_link} onChange={(e) => setCompForm({ ...compForm, submission_link: e.target.value })} className={`w-full ${inputClass}`} />
+                      </div>
+                    )}
+                  </div>
+                  {compForm.submission_type === "link" && (
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" checked={compForm.allow_file_upload} onChange={(e) => setCompForm({ ...compForm, allow_file_upload: e.target.checked })} className="w-4 h-4 accent-primary" />
+                      <span className="text-sm text-foreground">Also allow file upload alongside link</span>
+                    </label>
+                  )}
+                </div>
               </div>
-              <button onClick={async () => { if (compForm.title) { await addCompetition({ ...compForm, max_participants: parseInt(compForm.max_participants) || 100, first_place_points: parseInt(compForm.first_place_points) || 100 }); setCompForm({ title: "", description: "", game: "", start_date: "", end_date: "", prize: "", max_participants: "100", first_place_points: "100", status: "open", image_url: "" }); } }} className="mt-4 gradient-btn px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Add Competition</button>
+              <button onClick={async () => { if (compForm.title) { await addCompetition({ ...compForm, max_participants: parseInt(compForm.max_participants) || 100, first_place_points: parseInt(compForm.first_place_points) || 100 }); setCompForm({ title: "", description: "", game: "", start_date: "", end_date: "", prize: "", max_participants: "100", first_place_points: "100", status: "open", image_url: "", rules: "", submission_type: "link", submission_link: "", allow_file_upload: false }); } }} className="mt-4 gradient-btn px-6 py-2 rounded-lg text-sm font-medium flex items-center gap-2"><Plus className="w-4 h-4" /> Add Competition</button>
             </div>
             {competitions.length === 0 ? <p className="text-center text-muted-foreground py-12">No competitions yet.</p> : (
               <div className="space-y-3">
@@ -590,6 +617,24 @@ const AdminPage = () => {
                 <option value="open">Open</option><option value="ongoing">Ongoing</option><option value="ended">Ended</option>
               </select>
               <textarea value={editingItem.description} onChange={(e) => setEditingItem({ ...editingItem, description: e.target.value })} placeholder="Description" className={`w-full ${inputClass} h-20 resize-none`} />
+              <textarea value={editingItem.rules || ""} onChange={(e) => setEditingItem({ ...editingItem, rules: e.target.value })} placeholder="Rules" className={`w-full ${inputClass} h-24 resize-none`} />
+              <div className="space-y-3 bg-secondary/30 p-4 rounded-xl border border-border/50">
+                <label className="text-sm font-semibold text-foreground block">Submission Settings</label>
+                <select value={editingItem.submission_type || "link"} onChange={(e) => setEditingItem({ ...editingItem, submission_type: e.target.value })} className={`w-full ${inputClass}`}>
+                  <option value="link">Link</option>
+                  <option value="upload">File Upload</option>
+                  <option value="external">External Form</option>
+                </select>
+                {editingItem.submission_type === "external" && (
+                  <input value={editingItem.submission_link || ""} onChange={(e) => setEditingItem({ ...editingItem, submission_link: e.target.value })} placeholder="External form URL" className={`w-full ${inputClass}`} />
+                )}
+                {(editingItem.submission_type === "link" || !editingItem.submission_type) && (
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={editingItem.allow_file_upload || false} onChange={(e) => setEditingItem({ ...editingItem, allow_file_upload: e.target.checked })} className="w-4 h-4 accent-primary" />
+                    <span className="text-sm text-foreground">Also allow file upload alongside link</span>
+                  </label>
+                )}
+              </div>
             </>}
             <button onClick={saveEdit} className="w-full gradient-btn py-2.5 rounded-lg text-sm font-semibold">Save Changes</button>
           </div>
