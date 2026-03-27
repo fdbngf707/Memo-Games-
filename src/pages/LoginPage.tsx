@@ -80,8 +80,15 @@ const LoginPage = () => {
     const success = await signUp(email, password);
     setLoading(false);
     if (success) {
-      setMode("verify");
-      setOtpCode("");
+      // Email confirmation is disabled, so Supabase auto-logs in the user
+      // Try to sign in immediately
+      const loginSuccess = await signIn(email, password);
+      if (loginSuccess) {
+        navigate("/");
+      } else {
+        // If auto-signin didn't work, just go to login page
+        setMode("login");
+      }
     }
   };
 
