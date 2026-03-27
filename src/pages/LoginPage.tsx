@@ -8,9 +8,11 @@ import logo from "@/assets/memo-games-logo.png";
 
 type Mode = "login" | "signup" | "verify" | "reset" | "reset-code" | "reset-newpw";
 
+const OTP_LENGTH = 8;
+
 const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const digits = value.padEnd(8, " ").split("");
+  const digits = value.padEnd(OTP_LENGTH, " ").split("");
 
   const handleChange = (index: number, char: string) => {
     if (!/^\d?$/.test(char)) return;
@@ -18,7 +20,7 @@ const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) =>
     newDigits[index] = char;
     const newValue = newDigits.join("").trim();
     onChange(newValue);
-    if (char && index < 7) {
+    if (char && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -31,15 +33,15 @@ const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) =>
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
     onChange(pastedData);
-    const nextIndex = Math.min(pastedData.length, 7);
+    const nextIndex = Math.min(pastedData.length, OTP_LENGTH - 1);
     inputRefs.current[nextIndex]?.focus();
   };
 
   return (
-    <div className="flex justify-center gap-2 sm:gap-3">
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+    <div className="flex justify-center gap-1.5 sm:gap-2">
+      {Array.from({ length: OTP_LENGTH }, (_, i) => (
         <input
           key={i}
           ref={(el) => { inputRefs.current[i] = el; }}
@@ -50,7 +52,7 @@ const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) =>
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={i === 0 ? handlePaste : undefined}
-          className="w-10 h-12 sm:w-11 sm:h-14 text-center text-xl font-bold rounded-xl bg-secondary border-2 border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+          className="w-9 h-12 sm:w-11 sm:h-14 text-center text-xl font-bold rounded-xl bg-secondary border-2 border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
         />
       ))}
     </div>
@@ -80,15 +82,8 @@ const LoginPage = () => {
     const success = await signUp(email, password);
     setLoading(false);
     if (success) {
-      // Email confirmation is disabled, so Supabase auto-logs in the user
-      // Try to sign in immediately
-      const loginSuccess = await signIn(email, password);
-      if (loginSuccess) {
-        navigate("/");
-      } else {
-        // If auto-signin didn't work, just go to login page
-        setMode("login");
-      }
+      setMode("verify");
+      setOtpCode("");
     }
   };
 
@@ -101,8 +96,8 @@ const LoginPage = () => {
   };
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length !== 8) {
-      toast.error("Please enter the full 8-digit code.");
+    if (otpCode.length !== OTP_LENGTH) {
+      toast.error(`Please enter the full ${OTP_LENGTH}-digit code.`);
       return;
     }
     setLoading(true);
@@ -123,8 +118,8 @@ const LoginPage = () => {
   };
 
   const handleResetVerify = async () => {
-    if (otpCode.length !== 8) {
-      toast.error("Please enter the full 8-digit code.");
+    if (otpCode.length !== OTP_LENGTH) {
+      toast.error(`Please enter the full ${OTP_LENGTH}-digit code.`);
       return;
     }
     setLoading(true);
@@ -169,7 +164,7 @@ const LoginPage = () => {
   const subtitles: Record<Mode, string> = {
     login: "Sign in to your Memo Games account",
     signup: "Join the community and start earning points!",
-    verify: `We sent a 6-digit code to ${email}`,
+    verify: `We sent an ${OTP_LENGTH}-digit code to ${email}`,
     reset: "Enter your email to receive a reset code",
     "reset-code": `Enter the code sent to ${email}`,
     "reset-newpw": "Choose your new password",
@@ -197,7 +192,7 @@ const LoginPage = () => {
             <p className="text-muted-foreground text-sm mb-6">{subtitles[mode]}</p>
 
             <div className="space-y-4">
-              {/* ── LOGIN ── */}
+              {/* LOGIN */}
               {mode === "login" && (
                 <>
                   <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
@@ -216,7 +211,7 @@ const LoginPage = () => {
                 </>
               )}
 
-              {/* ── SIGN UP ── */}
+              {/* SIGN UP */}
               {mode === "signup" && (
                 <>
                   <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
@@ -232,15 +227,15 @@ const LoginPage = () => {
                 </>
               )}
 
-              {/* ── VERIFY OTP (after signup) ── */}
+              {/* VERIFY OTP (after signup) */}
               {mode === "verify" && (
                 <>
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 mb-2">
                     <Mail className="w-8 h-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-foreground">Check your email for an <strong>8-digit verification code</strong> from Memo Games.</p>
+                    <p className="text-sm text-foreground">Check your email for an <strong>{OTP_LENGTH}-digit verification code</strong> from Memo Games.</p>
                   </div>
                   <OtpInput value={otpCode} onChange={setOtpCode} />
-                  <button onClick={handleVerifyOtp} disabled={loading || otpCode.length !== 8} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={handleVerifyOtp} disabled={loading || otpCode.length !== OTP_LENGTH} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                     {loading ? <span className="animate-spin">⏳</span> : <><ShieldCheck className="w-4 h-4" /> Verify & Enter</>}
                   </button>
                   <button onClick={() => { signUp(email, password); toast.info("A new code has been sent!"); }} className="text-xs text-muted-foreground hover:text-primary transition-colors">
@@ -249,7 +244,7 @@ const LoginPage = () => {
                 </>
               )}
 
-              {/* ── RESET REQUEST ── */}
+              {/* RESET REQUEST */}
               {mode === "reset" && (
                 <>
                   <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} />
@@ -259,21 +254,21 @@ const LoginPage = () => {
                 </>
               )}
 
-              {/* ── RESET CODE ── */}
+              {/* RESET CODE */}
               {mode === "reset-code" && (
                 <>
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 mb-2">
                     <KeyRound className="w-8 h-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-foreground">Enter the <strong>8-digit reset code</strong> sent to your email.</p>
+                    <p className="text-sm text-foreground">Enter the <strong>{OTP_LENGTH}-digit reset code</strong> sent to your email.</p>
                   </div>
                   <OtpInput value={otpCode} onChange={setOtpCode} />
-                  <button onClick={handleResetVerify} disabled={loading || otpCode.length !== 8} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={handleResetVerify} disabled={loading || otpCode.length !== OTP_LENGTH} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                     {loading ? <span className="animate-spin">⏳</span> : <><ShieldCheck className="w-4 h-4" /> Verify Code</>}
                   </button>
                 </>
               )}
 
-              {/* ── NEW PASSWORD ── */}
+              {/* NEW PASSWORD */}
               {mode === "reset-newpw" && (
                 <>
                   <div className="relative">

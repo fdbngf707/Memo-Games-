@@ -86,7 +86,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     // Create a points row for the new user
     await supabase.from("user_points").upsert({ email, points: 0 }, { onConflict: "email" });
-    toast.success("Account created! Welcome to Memo Games! 🎮");
+    toast.success("Check your email for a verification code!");
     return true;
   },
 
