@@ -30,7 +30,10 @@ interface AuthState {
   initAuth: () => void;
   signUp: (email: string, password: string) => Promise<boolean>;
   signIn: (email: string, password: string) => Promise<boolean>;
+  verifyOtp: (email: string, token: string) => Promise<boolean>;
   resetPassword: (email: string) => Promise<boolean>;
+  verifyResetOtp: (email: string, token: string) => Promise<boolean>;
+  updatePassword: (newPassword: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   fetchUserPoints: (email: string) => Promise<void>;
   fetchShopItems: () => Promise<void>;
@@ -83,29 +86,69 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     // Create a points row for the new user
     await supabase.from("user_points").upsert({ email, points: 0 }, { onConflict: "email" });
-    toast.success("Account created! Check your email to confirm, or log in directly.");
+    toast.success("A verification code has been sent to your email!");
     return true;
   },
 
   signIn: async (email, password) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      toast.error(error.message);
+      // If the user hasn't confirmed their email, provide a clear message
+      if (error.message.includes("Email not confirmed")) {
+        toast.error("Please verify your email first. Check your inbox for the 6-digit code.");
+      } else {
+        toast.error(error.message);
+      }
       return false;
     }
     toast.success("Welcome back!");
     return true;
   },
 
-  resetPassword: async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
+  verifyOtp: async (email, token) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "signup",
     });
+    if (error) {
+      toast.error("Invalid or expired code. Please try again.");
+      return false;
+    }
+    toast.success("Email verified! Welcome to Memo Games! 🎮");
+    return true;
+  },
+
+  resetPassword: async (email) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
     if (error) {
       toast.error(error.message);
       return false;
     }
-    toast.success("Password reset email sent! Please check your inbox.");
+    toast.success("A reset code has been sent to your email!");
+    return true;
+  },
+
+  verifyResetOtp: async (email, token) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+    if (error) {
+      toast.error("Invalid or expired code. Please try again.");
+      return false;
+    }
+    return true;
+  },
+
+  updatePassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      toast.error("Failed to update password: " + error.message);
+      return false;
+    }
+    toast.success("Password updated successfully! You can now log in.");
     return true;
   },
 
@@ -131,7 +174,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   addPointsToUser: async (email, points) => {
-    // First check if user exists
     const { data: existing } = await supabase.from("user_points").select("points").eq("email", email).single();
     if (existing) {
       const { error } = await supabase.from("user_points").update({ points: existing.points + points }).eq("email", email);
@@ -179,7 +221,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const item = shopItems.find((i) => i.id === itemId);
     if (!item) { toast.error("Item not found"); return false; }
 
-    // Check if already purchased
     if (purchases.some((p) => p.item_id === itemId)) {
       toast.error("You already own this item");
       return false;
@@ -190,12 +231,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return false;
     }
 
-    // Deduct points
     const newPoints = userPoints - item.points_cost;
     const { error: pointsError } = await supabase.from("user_points").update({ points: newPoints }).eq("email", user.email);
     if (pointsError) { toast.error("Failed to deduct points"); return false; }
 
-    // Record purchase
     const { data: purchase, error: purchaseError } = await supabase.from("purchases").insert({ user_email: user.email, item_id: itemId }).select().single();
     if (purchaseError) { toast.error("Failed to record purchase"); return false; }
 
