@@ -10,7 +10,7 @@ type Mode = "login" | "signup" | "verify" | "reset" | "reset-code" | "reset-newp
 
 const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const digits = value.padEnd(6, " ").split("");
+  const digits = value.padEnd(8, " ").split("");
 
   const handleChange = (index: number, char: string) => {
     if (!/^\d?$/.test(char)) return;
@@ -18,7 +18,7 @@ const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) =>
     newDigits[index] = char;
     const newValue = newDigits.join("").trim();
     onChange(newValue);
-    if (char && index < 5) {
+    if (char && index < 7) {
       inputRefs.current[index + 1]?.focus();
     }
   };
@@ -31,15 +31,15 @@ const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) =>
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
     onChange(pastedData);
-    const nextIndex = Math.min(pastedData.length, 5);
+    const nextIndex = Math.min(pastedData.length, 7);
     inputRefs.current[nextIndex]?.focus();
   };
 
   return (
     <div className="flex justify-center gap-2 sm:gap-3">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
         <input
           key={i}
           ref={(el) => { inputRefs.current[i] = el; }}
@@ -50,7 +50,7 @@ const OtpInput = ({ value, onChange }: { value: string; onChange: (v: string) =>
           onChange={(e) => handleChange(i, e.target.value)}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={i === 0 ? handlePaste : undefined}
-          className="w-11 h-14 sm:w-12 sm:h-16 text-center text-2xl font-bold rounded-xl bg-secondary border-2 border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+          className="w-10 h-12 sm:w-11 sm:h-14 text-center text-xl font-bold rounded-xl bg-secondary border-2 border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
         />
       ))}
     </div>
@@ -101,8 +101,8 @@ const LoginPage = () => {
   };
 
   const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) {
-      toast.error("Please enter the full 6-digit code.");
+    if (otpCode.length !== 8) {
+      toast.error("Please enter the full 8-digit code.");
       return;
     }
     setLoading(true);
@@ -123,8 +123,8 @@ const LoginPage = () => {
   };
 
   const handleResetVerify = async () => {
-    if (otpCode.length !== 6) {
-      toast.error("Please enter the full 6-digit code.");
+    if (otpCode.length !== 8) {
+      toast.error("Please enter the full 8-digit code.");
       return;
     }
     setLoading(true);
@@ -237,10 +237,10 @@ const LoginPage = () => {
                 <>
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 mb-2">
                     <Mail className="w-8 h-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-foreground">Check your email for a <strong>6-digit verification code</strong> from Memo Games.</p>
+                    <p className="text-sm text-foreground">Check your email for an <strong>8-digit verification code</strong> from Memo Games.</p>
                   </div>
                   <OtpInput value={otpCode} onChange={setOtpCode} />
-                  <button onClick={handleVerifyOtp} disabled={loading || otpCode.length !== 6} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={handleVerifyOtp} disabled={loading || otpCode.length !== 8} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                     {loading ? <span className="animate-spin">⏳</span> : <><ShieldCheck className="w-4 h-4" /> Verify & Enter</>}
                   </button>
                   <button onClick={() => { signUp(email, password); toast.info("A new code has been sent!"); }} className="text-xs text-muted-foreground hover:text-primary transition-colors">
@@ -264,10 +264,10 @@ const LoginPage = () => {
                 <>
                   <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 mb-2">
                     <KeyRound className="w-8 h-8 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-foreground">Enter the <strong>6-digit reset code</strong> sent to your email.</p>
+                    <p className="text-sm text-foreground">Enter the <strong>8-digit reset code</strong> sent to your email.</p>
                   </div>
                   <OtpInput value={otpCode} onChange={setOtpCode} />
-                  <button onClick={handleResetVerify} disabled={loading || otpCode.length !== 6} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                  <button onClick={handleResetVerify} disabled={loading || otpCode.length !== 8} className="w-full gradient-btn py-3 rounded-lg font-semibold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
                     {loading ? <span className="animate-spin">⏳</span> : <><ShieldCheck className="w-4 h-4" /> Verify Code</>}
                   </button>
                 </>
