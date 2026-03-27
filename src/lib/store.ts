@@ -117,7 +117,7 @@ interface AppState {
   updateSiteStats: (stats: Partial<SiteStats>) => Promise<void>;
 }
 
-const ADMIN_PASSWORD_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
+const ADMIN_PASSWORD_HASH = "0adc4e35423a4a7eb3901242a82a11aa74f6eff6255dbcbe76efb8f1114cd496";
 
 async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
