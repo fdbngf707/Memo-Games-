@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield, Eye, EyeOff, LogOut, Plus, Trash2, Gamepad2, Megaphone, HelpCircle, ShoppingBag, MessageSquare, Coins, Store, Trophy, Pencil, X, Gift, BarChart3, ImagePlus, Upload, Save, Lock, Mail, ExternalLink, AlertCircle, History, Users, Check, Bell } from "lucide-react";
+import { Shield, Eye, EyeOff, LogOut, Plus, Trash2, Gamepad2, Megaphone, HelpCircle, ShoppingBag, MessageSquare, Coins, Store, Trophy, Pencil, X, Gift, BarChart3, ImagePlus, Upload, Save, Lock, Mail, ExternalLink, AlertCircle, History, Users, Check, Bell, Loader2, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/lib/store";
 import { useAuthStore } from "@/lib/authStore";
@@ -39,6 +39,14 @@ const AdminPage = () => {
   const [tab, setTab] = useState<"games" | "news" | "faqs" | "merch" | "messages" | "points" | "shop" | "competitions" | "rewards" | "stats">("games");
   // Reward Claims
   const [rewardClaims, setRewardClaims] = useState<any[]>([]);
+  // Reward Token Generator
+  const [rewardGenPoints, setRewardGenPoints] = useState("");
+  const [rewardGenExpiry, setRewardGenExpiry] = useState("48");
+  const [rewardGenLoading, setRewardGenLoading] = useState(false);
+  const [rewardGenResult, setRewardGenResult] = useState<{ tokenId: string; points: number; expiresAt: string; claimUrl: string } | null>(null);
+  const [rewardTokens, setRewardTokens] = useState<any[]>([]);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedTokenId, setCopiedTokenId] = useState("");
 
   // Competition Grading
   const [viewingCompetition, setViewingCompetition] = useState<any>(null);
@@ -76,11 +84,25 @@ const AdminPage = () => {
     }
   };
 
+  const fetchRewardTokens = async () => {
+    try {
+      const { data } = await supabase
+        .from("reward_tokens")
+        .select("id, points, is_used, claimed_by, expires_at, created_at")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (data) setRewardTokens(data);
+    } catch {
+      // Table may not exist yet
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       fetchShopItems();
       fetchAllUsers().then(setAllUsers);
       fetchRewardClaims();
+      fetchRewardTokens();
     }
   }, [isAdmin]);
 
@@ -458,10 +480,196 @@ const AdminPage = () => {
         {/* Rewards Tab */}
         {tab === "rewards" && (
           <div>
+            {/* ─── Generate Reward Link Section ─── */}
             <div className="glass-card p-6 mb-6">
-              <h3 className="font-semibold text-foreground mb-1">Reward Claims Log</h3>
-              <p className="text-muted-foreground text-sm mb-4">Last 50 voucher claims from the Discord bot reward system</p>
-              <button onClick={fetchRewardClaims} className="gradient-btn px-5 py-2 rounded-lg text-sm font-medium">Refresh</button>
+              <h3 className="font-semibold text-foreground mb-1">🎁 Generate Reward Link</h3>
+              <p className="text-muted-foreground text-sm mb-4">Create a one-time-use points voucher. Share the link on Discord, email, or anywhere.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Points Amount</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 100"
+                    min="1"
+                    value={rewardGenPoints}
+                    onChange={(e) => setRewardGenPoints(e.target.value)}
+                    className={inputClass + " w-full"}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Expiry</label>
+                  <select value={rewardGenExpiry} onChange={(e) => setRewardGenExpiry(e.target.value)} className={inputClass + " w-full"}>
+                    <option value="24">24 hours</option>
+                    <option value="48">48 hours (default)</option>
+                    <option value="72">3 days</option>
+                    <option value="168">7 days</option>
+                    <option value="720">30 days</option>
+                  </select>
+                </div>
+                <button
+                  disabled={!rewardGenPoints || parseInt(rewardGenPoints) <= 0 || rewardGenLoading}
+                  onClick={async () => {
+                    if (!rewardGenPoints || parseInt(rewardGenPoints) <= 0) return;
+                    setRewardGenLoading(true);
+                    setRewardGenResult(null);
+                    try {
+                      const expiryHours = parseInt(rewardGenExpiry) || 48;
+                      const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
+                      const { data, error } = await supabase
+                        .from("reward_tokens")
+                        .insert({ points: parseInt(rewardGenPoints), expires_at: expiresAt })
+                        .select("id, points, expires_at")
+                        .single();
+                      if (error) throw error;
+                      const siteUrl = window.location.hostname === "localhost"
+                        ? `http://localhost:${window.location.port}`
+                        : "https://memo-games-mauve.vercel.app";
+                      setRewardGenResult({
+                        tokenId: data.id,
+                        points: data.points,
+                        expiresAt: data.expires_at,
+                        claimUrl: `${siteUrl}/claim?token=${data.id}`,
+                      });
+                      setRewardGenPoints("");
+                      fetchRewardTokens();
+                    } catch (err: any) {
+                      alert("Failed to generate token: " + (err.message || "Unknown error"));
+                    }
+                    setRewardGenLoading(false);
+                  }}
+                  className="gradient-btn px-6 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  {rewardGenLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Gift className="w-4 h-4" />}
+                  {rewardGenLoading ? "Generating..." : "Generate Link"}
+                </button>
+              </div>
+
+              {/* Generated link result */}
+              {rewardGenResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-5 bg-[#39FF14]/5 border border-[#39FF14]/20 rounded-xl p-5"
+                >
+                  <div className="flex items-center gap-2 mb-3">
+                    <CheckCircle2 className="w-5 h-5 text-[#39FF14]" />
+                    <span className="font-semibold text-foreground">Link Generated!</span>
+                    <span className="text-[#39FF14] font-bold ml-auto">{rewardGenResult.points} pts</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      readOnly
+                      value={rewardGenResult.claimUrl}
+                      className="flex-1 px-4 py-2.5 rounded-lg bg-secondary border border-border text-foreground text-sm font-mono select-all"
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(rewardGenResult!.claimUrl);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }}
+                      className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${copiedLink ? "bg-[#39FF14] text-black" : "bg-secondary hover:bg-muted text-foreground border border-border"}`}
+                    >
+                      {copiedLink ? "✓ Copied!" : "Copy"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Expires: {new Date(rewardGenResult.expiresAt).toLocaleString()} • Token: <span className="font-mono">{rewardGenResult.tokenId.slice(0, 8)}...</span>
+                  </p>
+                </motion.div>
+              )}
+            </div>
+
+            {/* ─── Active Reward Tokens List ─── */}
+            <div className="glass-card p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Generated Tokens</h3>
+                  <p className="text-muted-foreground text-sm">All reward vouchers you have created</p>
+                </div>
+                <button onClick={fetchRewardTokens} className="text-sm text-primary hover:text-accent flex items-center gap-1">
+                  <History className="w-4 h-4" /> Refresh
+                </button>
+              </div>
+              {rewardTokens.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No tokens generated yet. Create your first one above!</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Points</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Status</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Claimed By</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Expires</th>
+                        <th className="text-left px-4 py-2.5 text-muted-foreground font-medium">Link</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rewardTokens.map((tk: any) => {
+                        const isExpired = new Date(tk.expires_at) < new Date();
+                        const status = tk.is_used ? "claimed" : isExpired ? "expired" : "active";
+                        return (
+                          <tr key={tk.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center gap-1 text-[#39FF14] font-semibold">
+                                <Coins className="w-3.5 h-3.5" />{tk.points}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full ${
+                                status === "active" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
+                                status === "claimed" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                                "bg-red-500/10 text-red-400 border border-red-500/20"
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${status === "active" ? "bg-green-400" : status === "claimed" ? "bg-blue-400" : "bg-red-400"}`} />
+                                {status === "active" ? "Active" : status === "claimed" ? "Claimed" : "Expired"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-foreground text-xs">{tk.claimed_by || "—"}</td>
+                            <td className="px-4 py-3 text-muted-foreground text-xs">{new Date(tk.expires_at).toLocaleString()}</td>
+                            <td className="px-4 py-3">
+                              {status === "active" && (
+                                <button
+                                  onClick={() => {
+                                    const siteUrl = window.location.hostname === "localhost"
+                                      ? `http://localhost:${window.location.port}`
+                                      : "https://memo-games-mauve.vercel.app";
+                                    navigator.clipboard.writeText(`${siteUrl}/claim?token=${tk.id}`);
+                                    setCopiedTokenId(tk.id);
+                                    setTimeout(() => setCopiedTokenId(""), 2000);
+                                  }}
+                                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                                    copiedTokenId === tk.id
+                                      ? "bg-[#39FF14] text-black"
+                                      : "bg-secondary hover:bg-muted text-primary border border-border"
+                                  }`}
+                                >
+                                  {copiedTokenId === tk.id ? "✓ Copied" : "Copy Link"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ─── Claims History ─── */}
+            <div className="glass-card p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-semibold text-foreground mb-1">Claims History</h3>
+                  <p className="text-muted-foreground text-sm">Last 50 voucher claims</p>
+                </div>
+                <button onClick={fetchRewardClaims} className="text-sm text-primary hover:text-accent flex items-center gap-1">
+                  <History className="w-4 h-4" /> Refresh
+                </button>
+              </div>
             </div>
             {rewardClaims.length === 0 ? <p className="text-center text-muted-foreground py-12">No reward claims yet.</p> : (
               <div className="glass-card overflow-hidden">
